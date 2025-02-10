@@ -1,19 +1,48 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ChevronRight, Plus } from "lucide-react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { mockData } from "./types";
-import { FileList } from "./components/file-list";
+import { mockData } from "../../types";
+import { FileList } from "../../components/file-list";
 
-export const metadata: Metadata = {
-	title: "Google Drive Clone",
-	description: "A simple Google Drive clone built with Next.js and shadcn/ui",
-};
+function findFolder(
+	id: string,
+	folder = mockData
+): typeof mockData | undefined {
+	if (folder.id === id) return folder;
+	for (const item of folder.children) {
+		if (item.type === "folder") {
+			const found = findFolder(id, item);
+			if (found) return found;
+		}
+	}
+}
 
-export default function GoogleDriveClone() {
+function getBreadcrumbs(
+	id: string,
+	folder = mockData,
+	path: (typeof mockData)[] = []
+): (typeof mockData)[] {
+	path.push(folder);
+	if (folder.id === id) return path;
+	for (const item of folder.children) {
+		if (item.type === "folder") {
+			const found = getBreadcrumbs(id, item, [...path]);
+			if (found) return found;
+		}
+	}
+	return [];
+}
+
+export default function FolderPage({ params }: { params: { id: string } }) {
+	const folder = findFolder(params.id);
+	if (!folder) notFound();
+
+	const breadcrumbs = getBreadcrumbs(params.id);
+
 	return (
 		<div className="flex flex-col h-screen bg-gray-900 text-gray-100">
 			<header className="flex items-center justify-between p-4 border-b border-gray-700">
@@ -31,12 +60,12 @@ export default function GoogleDriveClone() {
 				</div>
 			</header>
 			<nav className="p-4 border-b border-gray-700">
-				<Breadcrumbs items={[{ name: mockData.name, id: mockData.id }]} />
+				<Breadcrumbs items={breadcrumbs} />
 			</nav>
 			<main className="flex-1 overflow-hidden">
 				<ScrollArea className="h-full">
 					<div className="p-4">
-						<FileList items={mockData.children} />
+						<FileList items={folder.children} />
 					</div>
 				</ScrollArea>
 			</main>
@@ -44,12 +73,7 @@ export default function GoogleDriveClone() {
 	);
 }
 
-interface BreadcrumbItem {
-	name: string;
-	id: string;
-}
-
-function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
+function Breadcrumbs({ items }: { items: (typeof mockData)[] }) {
 	return (
 		<div className="flex items-center space-x-2 text-sm">
 			{items.map((item, index) => (
